@@ -1,0 +1,29 @@
+{
+  "name": "niftyswap-liquidity-migrator",
+  "version": "1.0.0",
+  "description": "Migrate liquidity on Niftyswap",
+  "author": "Horizon Blockchain Games",
+  "license": "Apache-2.0",
+  "type": "module",
+  "private": true,
+  "scripts": {
+    "test": "forge test -vvv",
+    "lint:init": "husky install",
+    "lint:sol": "solhint \"./src/**/*.sol\" \"./test/**/*.sol\" \"./script/**/*.sol\"",
+    "format:sol": "forge fmt"
+  },
+  "dependencies": {
+    "@0xsequence/niftyswap": "^6.0.1",
+    "@openzeppelin/contracts": "^5.0.0",
+    "@uniswap/v3-core": "^1.0.1"
+  },
+  "devDependencies": {
+    "@uniswap/v3-sdk": "^3.10.0",
+    "husky": "^8.0.3",
+    "lint-staged": "^13.2.2",
+    "solhint": "^3.4.1"
+  },
+  "lint-staged": {
+    "**/*.sol": "yarn lint:sol && yarn format:sol"
+  }
+}
