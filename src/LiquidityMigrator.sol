@@ -26,7 +26,8 @@ contract LiquidityMigrator is ILiquidityMigrator {
      * @dev This function is also called when liquidity token are withdrawn to this contract.
      */
     function onERC1155Received(address, address from, uint256 id, uint256 amount, bytes calldata callData)
-        external
+        public
+        virtual
         returns (bytes4)
     {
         if (!processing) {
@@ -53,7 +54,8 @@ contract LiquidityMigrator is ILiquidityMigrator {
         uint256[] calldata amounts,
         bytes calldata callData
     )
-        external
+        public
+        virtual
         returns (bytes4)
     {
         if (!processing) {
@@ -86,9 +88,9 @@ contract LiquidityMigrator is ILiquidityMigrator {
         MigrationData memory data = decodeMigrationData(callData);
 
         removeLiquidity(exchange, ids, amounts, data);
-        (uint256 balanceOld, uint256 balanceNew) = swapERC20(data);
+        swapERC20(data);
         uint256[] memory lpBalance;
-        (lpBalance) = depositLiquidity(ids, amounts, data, balanceOld, balanceNew);
+        (lpBalance) = depositLiquidity(ids, amounts, data);
         recoverToken(from, data, ids, lpBalance);
     }
 
@@ -120,13 +122,11 @@ contract LiquidityMigrator is ILiquidityMigrator {
     /**
      * Swap ERC20 tokens.
      * @param data The migration data.
-     * @return balanceOld The balance of the old ERC20 token.
-     * @return balanceNew The balance of the new ERC20 token.
      * @dev This swaps the current old ERC20 balance of this contract.
      */
-    function swapERC20(MigrationData memory data) internal returns (uint256 balanceOld, uint256 balanceNew) {
+    function swapERC20(MigrationData memory data) internal {
         // Swap ERC20
-        balanceOld = IERC20(data.erc20Old).balanceOf(address(this));
+        uint256 balanceOld = IERC20(data.erc20Old).balanceOf(address(this));
         TransferHelper.safeApprove(data.erc20Old, data.erc20Router, balanceOld);
         ISwapRouter.ExactInputSingleParams memory swapParams = ISwapRouter.ExactInputSingleParams({
             tokenIn: data.erc20Old,
@@ -137,10 +137,8 @@ contract LiquidityMigrator is ILiquidityMigrator {
             amountIn: balanceOld,
             amountOutMinimum: 0, // FIXME Suitable value here
             sqrtPriceLimitX96: 0 //FIXME data.sqrtPriceLimitX96
-        }); //FIXME Is this not sending everything?
+        });
         ISwapRouter(data.erc20Router).exactInputSingle(swapParams);
-        balanceNew = IERC20(data.erc20New).balanceOf(address(this));
-        return (balanceOld, balanceNew);
     }
 
     /**
@@ -148,26 +146,29 @@ contract LiquidityMigrator is ILiquidityMigrator {
      * @param ids The LP token ids.
      * @param amounts The LP token amounts.
      * @param data The migration data.
-     * @param balanceOld The balance of the old ERC20 token.
-     * @param balanceNew The balance of the new ERC20 token.
      */
     function depositLiquidity(
         uint256[] memory ids,
         uint256[] memory amounts,
-        MigrationData memory data,
-        uint256 balanceOld,
-        uint256 balanceNew
+        MigrationData memory data
     )
         internal
         returns (uint256[] memory lpBalance)
     {
-        TransferHelper.safeApprove(data.erc20New, data.exchangeNew, balanceNew);
+        uint256 balanceNew = IERC20(data.erc20New).balanceOf(address(this));
+        // Calculate rates
+        uint256 totalAmount;
+        for (uint256 i = 0; i < amounts.length; i++) {
+            totalAmount += amounts[i];
+        }
         address[] memory thiss = new address[](ids.length);
         uint256[] memory currencies = new uint256[](ids.length);
         for (uint256 i = 0; i < amounts.length; i++) {
             thiss[i] = address(this); // This is annoying
-            currencies[i] = FullMath.mulDiv(balanceNew, amounts[i], balanceOld);
+            currencies[i] = FullMath.mulDiv(balanceNew, amounts[i], totalAmount);
         }
+
+        TransferHelper.safeApprove(data.erc20New, data.exchangeNew, balanceNew);
         uint256[] memory amountsNew = IERC1155(data.erc1155).balanceOfBatch(thiss, ids);
         IERC1155(data.erc1155).safeBatchTransferFrom(
             address(this),
@@ -181,13 +182,14 @@ contract LiquidityMigrator is ILiquidityMigrator {
 
     /**
      * Return any remaining tokens to the caller.
+     * @notice This includes newly minted LP tokens.
      * @dev This can happen to do slippage and rounding errors.
      */
     function recoverToken(address from, MigrationData memory data, uint256[] memory ids, uint256[] memory lpBalance)
         internal
     {
         IERC1155(data.exchangeNew).safeBatchTransferFrom(address(this), from, ids, lpBalance, "");
-        TransferHelper.safeTransfer(data.erc20Old, from, IERC20(data.erc20New).balanceOf(address(this)));
+        TransferHelper.safeTransfer(data.erc20Old, from, IERC20(data.erc20Old).balanceOf(address(this)));
         TransferHelper.safeTransfer(data.erc20New, from, IERC20(data.erc20New).balanceOf(address(this)));
     }
 

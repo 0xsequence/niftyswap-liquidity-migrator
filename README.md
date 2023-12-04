@@ -28,7 +28,7 @@ I->>B: Approve USDC
 I->>B: Deposit liquidity
 I-->>M: Send Exchange B LP tokens
 note over I: In case of slippage
-I-->>-M: Send remaining USDC
+I-->>-M: Send remaining USDC/.e
 ```
 
 Note that this repository has been designed to cater for any ERC1155 and ERC20 tokens.
