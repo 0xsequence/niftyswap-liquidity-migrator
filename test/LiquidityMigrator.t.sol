@@ -64,9 +64,9 @@ contract LiquidityMigratorTest is Test {
         erc20New = new ERC20Mock();
         vm.label(address(erc20New), "ERC20New");
         erc1155 = new ERC1155Mock();
-        erc20Old.mockMint(setUpAddr, 10 * 1e18);
-        erc20New.mockMint(setUpAddr, 10 * 1e18);
-        erc1155.mintMock(setUpAddr, TOKEN_ID, 10 * 1e18, "");
+        erc20Old.mockMint(setUpAddr, 100 * 1e18);
+        erc20New.mockMint(setUpAddr, 100 * 1e18);
+        erc1155.mintMock(setUpAddr, TOKEN_ID, 100 * 1e18, "");
     }
 
     /**
@@ -92,6 +92,7 @@ contract LiquidityMigratorTest is Test {
         erc20Router = ISwapRouter(_erc20Router);
 
         address _erc20Pool = factory.createPool(_erc20Old, _erc20New, fee); // Low fee tier
+        vm.label(_erc20Pool, "UniswapPool");
         erc20Pool = IUniswapV3Pool(_erc20Pool);
         erc20Pool.initialize(encodePriceSqrt(1, 1));
 
@@ -102,16 +103,16 @@ contract LiquidityMigratorTest is Test {
             fee: fee,
             tickLower: -10,
             tickUpper: 10,
-            amount0Desired: 1e18,
-            amount1Desired: 1e18,
+            amount0Desired: 10e18,
+            amount1Desired: 10e18,
             amount0Min: 0,
             amount1Min: 0,
             recipient: setUpAddr,
             deadline: block.timestamp + 1 // solhint-disable-line not-rely-on-time
         });
         vm.startPrank(setUpAddr);
-        erc20Old.approve(_nfpm, 1e18);
-        erc20New.approve(_nfpm, 1e18);
+        erc20Old.approve(_nfpm, 10e18);
+        erc20New.approve(_nfpm, 10e18);
         nfpm.mint(params);
         vm.stopPrank();
     }
@@ -191,8 +192,6 @@ contract LiquidityMigratorTest is Test {
         (result) = exchangeOld.getPrice_tokenToCurrency(tokenIds, amounts);
         uint256 priceCurrencyOld = result[0];
 
-        (uint160 sqrtPriceX96,,,,,,) = erc20Pool.slot0();
-        bool zeroForOne = erc20Pool.token0() == address(erc20Old);
         ILiquidityMigrator.MigrationData memory data = ILiquidityMigrator.MigrationData({
             deadline: uint96(block.timestamp + 1), // solhint-disable-line not-rely-on-time
             minCurrencies: new uint256[](1), // 0 is ok
@@ -201,7 +200,7 @@ contract LiquidityMigratorTest is Test {
             erc20New: address(erc20New),
             erc20Router: address(erc20Router),
             swapFee: UNISWAP_FEE,
-            sqrtPriceLimitX96: zeroForOne ? sqrtPriceX96 - 1 : sqrtPriceX96 + 1,
+            minSwapDelta: 9990,
             exchangeNew: address(exchangeNew),
             erc1155: address(erc1155)
         });
@@ -221,23 +220,28 @@ contract LiquidityMigratorTest is Test {
         assertApproxEqRel(result[0], priceCurrencyOld, 1e18 / 1000); // Within 0.1% diff
     }
 
+    //FIXME End to end with multiple LPs of diff pricings
+
     //
     // Remove Liquidity
     //
     function testRemoveLiquidity(
         uint256 tokenAmount,
         uint256 currencyAmount,
-        ILiquidityMigrator.MigrationData memory data
+        uint256 minCurrency,
+        uint256 minToken
     )
         public
     {
-        data.minTokens = fixArrayLength(data.minTokens, 1);
-        data.minCurrencies = fixArrayLength(data.minCurrencies, 1);
+        ILiquidityMigrator.MigrationData memory data = baseData();
         tokenAmount = _bound(tokenAmount, 100, 1e18);
-        data.minTokens[0] = _bound(data.minTokens[0], 1, tokenAmount);
         currencyAmount = _bound(currencyAmount, 1000, 1e18);
-        data.minCurrencies[0] = _bound(data.minCurrencies[0], 1, currencyAmount);
-        data.deadline = boundDeadline(data.deadline);
+        uint256[] memory minCurrencies = new uint256[](1);
+        minCurrencies[0] = _bound(minCurrency, 1, currencyAmount);
+        data.minCurrencies = minCurrencies;
+        uint256[] memory minTokens = new uint256[](1);
+        minTokens[0] = _bound(minToken, 1, tokenAmount);
+        data.minTokens = minTokens;
 
         addExchangeLiquidity(address(exchangeOld), currencyAmount, tokenAmount, address(migrator));
 
@@ -256,7 +260,7 @@ contract LiquidityMigratorTest is Test {
     // Swap ERC20
     //
     function testSwapERC20(uint256 balanceOld) public {
-        balanceOld = _bound(balanceOld, 1000, 100e18);
+        balanceOld = _bound(balanceOld, 1000, 1e18);
 
         ILiquidityMigrator.MigrationData memory data = baseData();
 
@@ -309,7 +313,7 @@ contract LiquidityMigratorTest is Test {
     //
     // Recover Tokens
     //
-    function testRecoverToken(
+    function testRecoverTokens(
         address receiver,
         uint256 erc20OldBal,
         uint256 erc20NewBal,
@@ -331,7 +335,7 @@ contract LiquidityMigratorTest is Test {
         data.exchangeNew = address(erc1155); // Pretend this is LP
         erc1155.batchMintMock(_migrator, ids, amounts, "");
 
-        migrator.callRecoverToken(receiver, data, ids, amounts);
+        migrator.callRecoverTokens(receiver, data, ids, amounts);
 
         {
             assertEq(erc20Old.balanceOf(_migrator), 0);
@@ -357,7 +361,7 @@ contract LiquidityMigratorTest is Test {
             erc20New: address(erc20New),
             erc20Router: address(erc20Router),
             swapFee: UNISWAP_FEE,
-            sqrtPriceLimitX96: 0,
+            minSwapDelta: 9000, // 10.0% in/out diff
             exchangeNew: address(exchangeNew),
             erc1155: address(erc1155)
         });

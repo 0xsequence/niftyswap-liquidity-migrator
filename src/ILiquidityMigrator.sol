@@ -12,12 +12,11 @@ interface ILiquidityMigrator is IERC1155TokenReceiver {
         uint256[] minCurrencies;
         uint256[] minTokens;
         // ERC20 swap params
+        address erc20Router;
         address erc20Old;
         address erc20New;
-        // See https://docs.uniswap.org/contracts/v3/reference/periphery/interfaces/ISwapRouter
-        address erc20Router;
         uint24 swapFee;
-        uint160 sqrtPriceLimitX96;
+        uint24 minSwapDelta; // Min amount of tokens to receive from swap as a percentage of input (10000 = 100%)
         // Add liquidity params
         address exchangeNew;
         address erc1155;

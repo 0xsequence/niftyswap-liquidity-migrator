@@ -91,7 +91,7 @@ contract LiquidityMigrator is ILiquidityMigrator {
         swapERC20(data);
         uint256[] memory lpBalance;
         (lpBalance) = depositLiquidity(ids, amounts, data);
-        recoverToken(from, data, ids, lpBalance);
+        recoverTokens(from, data, ids, lpBalance);
     }
 
     /**
@@ -128,6 +128,7 @@ contract LiquidityMigrator is ILiquidityMigrator {
         // Swap ERC20
         uint256 balanceOld = IERC20(data.erc20Old).balanceOf(address(this));
         TransferHelper.safeApprove(data.erc20Old, data.erc20Router, balanceOld);
+        uint256 amountOutMinimum = FullMath.mulDiv(balanceOld, data.minSwapDelta, 10000);
         ISwapRouter.ExactInputSingleParams memory swapParams = ISwapRouter.ExactInputSingleParams({
             tokenIn: data.erc20Old,
             tokenOut: data.erc20New,
@@ -135,8 +136,8 @@ contract LiquidityMigrator is ILiquidityMigrator {
             recipient: address(this),
             deadline: data.deadline,
             amountIn: balanceOld,
-            amountOutMinimum: 0, // FIXME Suitable value here
-            sqrtPriceLimitX96: 0 //FIXME data.sqrtPriceLimitX96
+            amountOutMinimum: amountOutMinimum,
+            sqrtPriceLimitX96: 0
         });
         ISwapRouter(data.erc20Router).exactInputSingle(swapParams);
     }
@@ -165,7 +166,7 @@ contract LiquidityMigrator is ILiquidityMigrator {
         uint256[] memory currencies = new uint256[](ids.length);
         for (uint256 i = 0; i < amounts.length; i++) {
             thiss[i] = address(this); // This is annoying
-            currencies[i] = FullMath.mulDiv(balanceNew, amounts[i], totalAmount);
+            currencies[i] = FullMath.mulDiv(balanceNew, amounts[i], totalAmount); //FIXME This is wrong. The ratio should look at the withdrawn ERC20 price
         }
 
         TransferHelper.safeApprove(data.erc20New, data.exchangeNew, balanceNew);
@@ -185,7 +186,7 @@ contract LiquidityMigrator is ILiquidityMigrator {
      * @notice This includes newly minted LP tokens.
      * @dev This can happen to do slippage and rounding errors.
      */
-    function recoverToken(address from, MigrationData memory data, uint256[] memory ids, uint256[] memory lpBalance)
+    function recoverTokens(address from, MigrationData memory data, uint256[] memory ids, uint256[] memory lpBalance)
         internal
     {
         IERC1155(data.exchangeNew).safeBatchTransferFrom(address(this), from, ids, lpBalance, "");

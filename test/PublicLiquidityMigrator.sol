@@ -66,9 +66,9 @@ contract PublicLiquidityMigrator is LiquidityMigrator {
         return super.depositLiquidity(ids, amounts, data);
     }
 
-    function callRecoverToken(address from, MigrationData memory data, uint256[] memory ids, uint256[] memory lpBalance)
+    function callRecoverTokens(address from, MigrationData memory data, uint256[] memory ids, uint256[] memory lpBalance)
         external
     {
-        super.recoverToken(from, data, ids, lpBalance);
+        super.recoverTokens(from, data, ids, lpBalance);
     }
 }
