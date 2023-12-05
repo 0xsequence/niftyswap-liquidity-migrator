@@ -2,8 +2,11 @@
 pragma solidity ^0.8.20;
 
 import {ILiquidityMigrator} from "./ILiquidityMigrator.sol";
+
 import {IERC20} from "@0xsequence/erc-1155/contracts/interfaces/IERC20.sol";
 import {IERC1155} from "@0xsequence/erc-1155/contracts/interfaces/IERC1155.sol";
+
+import {INiftyswapExchange20} from "@0xsequence/niftyswap/contracts/interfaces/INiftyswapExchange20.sol";
 
 import {ISwapRouter} from "@uniswap/v3-periphery/contracts/interfaces/ISwapRouter.sol";
 import {TransferHelper} from "@uniswap/lib/contracts/libraries/TransferHelper.sol";
@@ -87,10 +90,9 @@ contract LiquidityMigrator is ILiquidityMigrator {
         // Decode data
         MigrationData memory data = decodeMigrationData(callData);
 
-        removeLiquidity(exchange, ids, amounts, data);
-        swapERC20(data);
-        uint256[] memory lpBalance;
-        (lpBalance) = depositLiquidity(ids, amounts, data);
+        (uint256[] memory currenciesRemoved) = removeLiquidity(exchange, ids, amounts, data);
+        (uint256 balanceOld, uint256 balanceNew) = swapERC20(data);
+        (uint256[] memory lpBalance) = depositLiquidity(ids, amounts, data, currenciesRemoved, balanceOld, balanceNew);
         recoverTokens(from, data, ids, lpBalance);
     }
 
@@ -108,7 +110,9 @@ contract LiquidityMigrator is ILiquidityMigrator {
         MigrationData memory data
     )
         internal
+        returns (uint256[] memory currenciesRemoved)
     {
+        uint256[] memory reservesBefore = INiftyswapExchange20(exchange).getCurrencyReserves(ids);
         // Remove liquidity by sending LP tokens to iteself
         IERC1155(exchange).safeBatchTransferFrom(
             address(this),
@@ -117,6 +121,13 @@ contract LiquidityMigrator is ILiquidityMigrator {
             amounts,
             NiftyswapEncoder.encodeRemoveLiquidity(data.minCurrencies, data.minTokens, data.deadline)
         );
+
+        // Calculate how much of each currency was removed for each token
+        uint256[] memory reservesAfter = INiftyswapExchange20(exchange).getCurrencyReserves(ids);
+        currenciesRemoved = new uint256[](ids.length);
+        for (uint256 i = 0; i < ids.length; i++) {
+            currenciesRemoved[i] = reservesBefore[i] - reservesAfter[i];
+        }
     }
 
     /**
@@ -124,9 +135,9 @@ contract LiquidityMigrator is ILiquidityMigrator {
      * @param data The migration data.
      * @dev This swaps the current old ERC20 balance of this contract.
      */
-    function swapERC20(MigrationData memory data) internal {
+    function swapERC20(MigrationData memory data) internal returns (uint256 balanceOld, uint256 balanceNew) {
         // Swap ERC20
-        uint256 balanceOld = IERC20(data.erc20Old).balanceOf(address(this));
+        balanceOld = IERC20(data.erc20Old).balanceOf(address(this));
         TransferHelper.safeApprove(data.erc20Old, data.erc20Router, balanceOld);
         uint256 amountOutMinimum = FullMath.mulDiv(balanceOld, data.minSwapDelta, 10000);
         ISwapRouter.ExactInputSingleParams memory swapParams = ISwapRouter.ExactInputSingleParams({
@@ -140,6 +151,7 @@ contract LiquidityMigrator is ILiquidityMigrator {
             sqrtPriceLimitX96: 0
         });
         ISwapRouter(data.erc20Router).exactInputSingle(swapParams);
+        balanceNew = IERC20(data.erc20New).balanceOf(address(this));
     }
 
     /**
@@ -147,26 +159,27 @@ contract LiquidityMigrator is ILiquidityMigrator {
      * @param ids The LP token ids.
      * @param amounts The LP token amounts.
      * @param data The migration data.
+     * @param currenciesRemoved The amount of ERC20 for each LP token removed from the old exchange.
+     * @param balanceOld The old ERC20 balance removed from the old exchange.
+     * @param balanceNew The new ERC20 balance after swapping the `balanceOld`.
      */
     function depositLiquidity(
         uint256[] memory ids,
         uint256[] memory amounts,
-        MigrationData memory data
+        MigrationData memory data,
+        uint256[] memory currenciesRemoved,
+        uint256 balanceOld,
+        uint256 balanceNew
     )
         internal
         returns (uint256[] memory lpBalance)
     {
-        uint256 balanceNew = IERC20(data.erc20New).balanceOf(address(this));
         // Calculate rates
-        uint256 totalAmount;
-        for (uint256 i = 0; i < amounts.length; i++) {
-            totalAmount += amounts[i];
-        }
         address[] memory thiss = new address[](ids.length);
         uint256[] memory currencies = new uint256[](ids.length);
         for (uint256 i = 0; i < amounts.length; i++) {
             thiss[i] = address(this); // This is annoying
-            currencies[i] = FullMath.mulDiv(balanceNew, amounts[i], totalAmount); //FIXME This is wrong. The ratio should look at the withdrawn ERC20 price
+            currencies[i] = FullMath.mulDiv(balanceNew, currenciesRemoved[i], balanceOld);
         }
 
         TransferHelper.safeApprove(data.erc20New, data.exchangeNew, balanceNew);

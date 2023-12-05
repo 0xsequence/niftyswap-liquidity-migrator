@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 pragma solidity ^0.8.20;
 
-import {LiquidityMigrator, ILiquidityMigrator} from "../src/LiquidityMigrator.sol";
+import {LiquidityMigrator} from "../src/LiquidityMigrator.sol";
 
 /// @dev Exposes internal functions for testing.
 /// @dev Adds toggle for processing end to end on LP tokens received
@@ -47,26 +47,35 @@ contract PublicLiquidityMigrator is LiquidityMigrator {
         MigrationData memory data
     )
         external
+        returns (uint256[] memory currenciesRemoved)
     {
-        super.removeLiquidity(exchange, ids, amounts, data);
+        return super.removeLiquidity(exchange, ids, amounts, data);
     }
 
-    function callSwapERC20(MigrationData memory data) external {
-        super.swapERC20(data);
+    function callSwapERC20(MigrationData memory data) external returns (uint256 balanceOld, uint256 balanceNew) {
+        return super.swapERC20(data);
     }
 
     function callDepositLiquidity(
         uint256[] memory ids,
         uint256[] memory amounts,
-        MigrationData memory data
+        MigrationData memory data,
+        uint256[] memory currenciesRemoved,
+        uint256 balanceOld,
+        uint256 balanceNew
     )
         external
         returns (uint256[] memory lpBalance)
     {
-        return super.depositLiquidity(ids, amounts, data);
+        return super.depositLiquidity(ids, amounts, data, currenciesRemoved, balanceOld, balanceNew);
     }
 
-    function callRecoverTokens(address from, MigrationData memory data, uint256[] memory ids, uint256[] memory lpBalance)
+    function callRecoverTokens(
+        address from,
+        MigrationData memory data,
+        uint256[] memory ids,
+        uint256[] memory lpBalance
+    )
         external
     {
         super.recoverTokens(from, data, ids, lpBalance);

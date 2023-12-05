@@ -2,6 +2,7 @@
 pragma solidity ^0.8.20;
 
 // solhint-disable no-console
+// solhint-disable no-inline-assembly
 
 import {Test, console} from "forge-std/Test.sol";
 
@@ -16,6 +17,7 @@ import {IUniswapV3Factory} from "@uniswap/v3-core/contracts/interfaces/IUniswapV
 import {IUniswapV3Pool} from "@uniswap/v3-core/contracts/interfaces/IUniswapV3Pool.sol";
 import {ISwapRouter} from "@uniswap/v3-periphery/contracts/interfaces/ISwapRouter.sol";
 import {INonfungiblePositionManager} from "./uniswap/INonfungiblePositionManager.sol";
+import {FullMath} from "src/uniswap/FullMath.sol";
 
 import {ERC1155Mock} from "@0xsequence/niftyswap/contracts/mocks/ERC1155Mock.sol";
 import {ERC20Mock} from "@0xsequence/erc20-meta-token/contracts/mocks/ERC20Mock.sol";
@@ -66,7 +68,6 @@ contract LiquidityMigratorTest is Test {
         erc1155 = new ERC1155Mock();
         erc20Old.mockMint(setUpAddr, 100 * 1e18);
         erc20New.mockMint(setUpAddr, 100 * 1e18);
-        erc1155.mintMock(setUpAddr, TOKEN_ID, 100 * 1e18, "");
     }
 
     /**
@@ -139,34 +140,37 @@ contract LiquidityMigratorTest is Test {
         exchangeNew = INiftyswapExchange20(_exchangeNew);
     }
 
+    // Add liquidity to old exchange
     function addExchangeLiquidity(
         address exchangeAddr,
         uint256 currencyAmount,
+        uint256 tokenId,
         uint256 tokenAmount,
         address lpTokenHolder
     )
         private
     {
-        // Add liquidity to old exchange
+
         uint256[] memory currencies = new uint256[](1);
         currencies[0] = currencyAmount;
 
         IERC1155 exchangeToken = IERC1155(exchangeAddr);
-        uint256 lpBal = exchangeToken.balanceOf(setUpAddr, TOKEN_ID);
+        uint256 lpBal = exchangeToken.balanceOf(setUpAddr, tokenId);
 
         erc20Old.mockMint(setUpAddr, currencyAmount);
+        erc1155.mintMock(setUpAddr, tokenId, tokenAmount, "");
         vm.startPrank(setUpAddr);
         erc20Old.approve(exchangeAddr, currencyAmount);
 
         erc1155.safeTransferFrom(
             setUpAddr,
             exchangeAddr,
-            TOKEN_ID,
+            tokenId,
             tokenAmount,
             NiftyswapEncoder.encodeAddLiquidity(currencies, block.timestamp + 1) // solhint-disable-line not-rely-on-time
         );
-        lpBal = exchangeToken.balanceOf(setUpAddr, TOKEN_ID) - lpBal;
-        exchangeToken.safeTransferFrom(setUpAddr, lpTokenHolder, TOKEN_ID, lpBal, "");
+        lpBal = exchangeToken.balanceOf(setUpAddr, tokenId) - lpBal;
+        exchangeToken.safeTransferFrom(setUpAddr, lpTokenHolder, tokenId, lpBal, "");
         vm.stopPrank();
     }
 
@@ -175,7 +179,7 @@ contract LiquidityMigratorTest is Test {
     //
     function testEndToEnd() public {
         migrator.setProcessOnReceive(true); // Normal processing
-        addExchangeLiquidity(address(exchangeOld), 1e18, 1e18 / 10, migratingAddr);
+        addExchangeLiquidity(address(exchangeOld), 1e18, TOKEN_ID, 1e18 / 10, migratingAddr);
 
         logBalance("Before migratingAddr", migratingAddr);
         logBalance("Before migrator", address(migrator));
@@ -229,7 +233,8 @@ contract LiquidityMigratorTest is Test {
         uint256 tokenAmount,
         uint256 currencyAmount,
         uint256 minCurrency,
-        uint256 minToken
+        uint256 minToken,
+        uint256 tokenId
     )
         public
     {
@@ -243,17 +248,18 @@ contract LiquidityMigratorTest is Test {
         minTokens[0] = _bound(minToken, 1, tokenAmount);
         data.minTokens = minTokens;
 
-        addExchangeLiquidity(address(exchangeOld), currencyAmount, tokenAmount, address(migrator));
+        addExchangeLiquidity(address(exchangeOld), currencyAmount, tokenId, tokenAmount, address(migrator));
 
         uint256[] memory ids = new uint256[](1);
-        ids[0] = TOKEN_ID;
+        ids[0] = tokenId;
         uint256[] memory amounts = new uint256[](1);
-        amounts[0] = IERC1155(address(exchangeOld)).balanceOf(address(migrator), TOKEN_ID); // LP
+        amounts[0] = IERC1155(address(exchangeOld)).balanceOf(address(migrator), tokenId); // LP
+
         migrator.callRemoveLiquidity(address(exchangeOld), ids, amounts, data);
 
         assertGe(erc20Old.balanceOf(address(migrator)), data.minCurrencies[0]);
-        assertGe(erc1155.balanceOf(address(migrator), TOKEN_ID), data.minTokens[0]);
-        assertEq(IERC1155(address(exchangeOld)).balanceOf(address(migrator), TOKEN_ID), 0);
+        assertGe(erc1155.balanceOf(address(migrator), tokenId), data.minTokens[0]);
+        assertEq(IERC1155(address(exchangeOld)).balanceOf(address(migrator), tokenId), 0);
     }
 
     //
@@ -277,28 +283,26 @@ contract LiquidityMigratorTest is Test {
     //
     // Deposit Liquidity
     //
-    function testDepositLiquidity(
+    function testDepositLiquidityStable(
         uint256[] memory ids,
         uint256[] memory amounts,
-        uint256 balanceNew
+        uint256 balance
     )
         public
     {
         (ids, amounts) = boundIdsAndAmounts(ids, amounts, 3);
-        uint256 totalAmount;
+        balance = _bound(balance, 1000 * ids.length, 100e18);
+        uint256[] memory currencies = new uint256[](ids.length);
         for (uint256 i = 0; i < amounts.length; i++) {
-            totalAmount += amounts[i];
+            currencies[i] = balance / amounts.length;
         }
-        uint256 balMin = 1000 * totalAmount;
-        vm.assume(balMin < 100e18);
-        balanceNew = _bound(balanceNew, balMin, 100e18);
 
         ILiquidityMigrator.MigrationData memory data = baseData();
 
-        erc20New.mockMint(address(migrator), balanceNew);
+        erc20New.mockMint(address(migrator), balance);
         erc1155.batchMintMock(address(migrator), ids, amounts, "");
 
-        (uint256[] memory lpBalance) = migrator.callDepositLiquidity(ids, amounts, data);
+        (uint256[] memory lpBalance) = migrator.callDepositLiquidity(ids, amounts, data, currencies, balance, balance);
 
         uint256[] memory zeros = new uint256[](ids.length);
         address[] memory thiss = new address[](ids.length);
@@ -308,6 +312,60 @@ contract LiquidityMigratorTest is Test {
         assertEq(zeros, erc1155.balanceOfBatch(thiss, ids)); // Everything used
         assertEq(lpBalance, IERC1155(data.exchangeNew).balanceOfBatch(thiss, ids)); // LP output correct
         assertApproxEqAbs(0, erc20New.balanceOf(address(migrator)), 3); // Rounding error
+        assertEq(exchangeNew.getCurrencyReserves(ids), currencies); // Reserves correct
+    }
+
+    function testDepositLiquidityDiffPrices(
+        uint256[] memory ids,
+        uint256[] memory amounts,
+        uint256 balanceNew,
+        uint256[] memory currencies
+    ) public {
+        (ids, amounts) = boundIdsAndAmounts(ids, amounts, 3);
+        uint256 len = ids.length;
+        assembly {
+            mstore(currencies, len)
+        }
+        uint256 balanceOld;
+        uint256 lowestCurr = type(uint256).max;
+        for (uint256 i = 0; i < len; i++) {
+            currencies[i] = _bound(currencies[i], 1000, 1e18);
+            balanceOld += currencies[i];
+            if (currencies[i] < lowestCurr) {
+                lowestCurr = currencies[i];
+            }
+        }
+        // For large spreads new currency bal to deposit must exceed 1000 for the smallest LP
+        // vm.assume(lowestCurr < 100e18);
+        lowestCurr = FullMath.mulDiv(1000 * ids.length, balanceOld, lowestCurr);
+        balanceNew = _bound(balanceNew, lowestCurr, 100e18);
+
+        ILiquidityMigrator.MigrationData memory data = baseData();
+
+        erc20New.mockMint(address(migrator), balanceNew);
+        erc1155.batchMintMock(address(migrator), ids, amounts, "");
+
+        (uint256[] memory lpBalance) = migrator.callDepositLiquidity(ids, amounts, data, currencies, balanceOld, balanceNew);
+
+        uint256[] memory zeros = new uint256[](ids.length);
+        address[] memory thiss = new address[](ids.length);
+        for (uint256 i = 0; i < amounts.length; i++) {
+            thiss[i] = address((address(migrator)));
+        }
+        assertEq(zeros, erc1155.balanceOfBatch(thiss, ids)); // Everything used
+        assertEq(lpBalance, IERC1155(data.exchangeNew).balanceOfBatch(thiss, ids)); // LP output correct
+        assertApproxEqAbs(0, erc20New.balanceOf(address(migrator)), 3); // Rounding error
+
+        uint256[] memory reserves = exchangeNew.getCurrencyReserves(ids);
+        for (uint256 i = 0; i < len; i++) {
+            console.log("curr, res", currencies[i], reserves[i]);
+            assertEq(reserves[i], FullMath.mulDiv(balanceNew, currencies[i], balanceOld)); // Reserves correct
+            if (i > 0) {
+                // Price ratio accounting for rounding error
+                assertApproxEqAbs(currencies[i] / reserves[i], currencies[i - 1] / reserves[i - 1], balanceOld);
+                assertApproxEqAbs(reserves[i] / currencies[i], reserves[i - 1] / currencies[i - 1], balanceOld);
+            }
+        }
     }
 
     //
@@ -432,9 +490,7 @@ contract LiquidityMigratorTest is Test {
 
         // Check ids
         assumeNoDuplicates(ids);
-        console.log("assumeNoDuplicates done");
         outputIds = sortArray(ids);
-        console.log("sortArray done");
 
         // Limit amounts
         outputAmounts = new uint256[](maxLen);
@@ -446,7 +502,6 @@ contract LiquidityMigratorTest is Test {
                 outputAmounts[i] = _bound(amounts[i], 1, type(uint96).max);
             }
         }
-        console.log("bound amounts done");
     }
 
     function fixArrayLength(uint256[] memory arr, uint256 length) internal pure returns (uint256[] memory output) {
