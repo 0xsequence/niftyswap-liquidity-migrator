@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
-pragma solidity 0.8.20;
+pragma solidity ^0.8.19;
 
 /// @title Non-fungible token for positions
 /// @author https://github.com/Uniswap/v3-periphery/blob/697c2474757ea89fec12a4e6db16a574fe259610/contracts/interfaces/INonfungiblePositionManager.sol
