@@ -3,7 +3,9 @@ yarn-error.log
 
 cache
 out
+broadcast
 
 .env
+config.json
 
 .vscode

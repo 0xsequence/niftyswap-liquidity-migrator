@@ -95,7 +95,7 @@ The Migrator contract does not attempt to return any ERC1155 tokens or Old LP to
 
 ## Usage
 
-Install dependencies:
+### Install dependencies
 
 ```sh
 git submodule update --init --recursive
@@ -103,18 +103,40 @@ yarn
 yarn lint:init # For developers
 ```
 
-Run tests:
+### Run tests
 
 ```sh
 yarn test
 ```
 
-Run the script:
+### Deploy the contracts
 
 ```sh
 cp .env.example .env
 # Manually update the .env file with the correct values
-forge script script/LiveTest.s.sol:LiveTestScript --fork-url https://rpc-mainnet.matic.quiknode.pro -vvvvv
+yarn run:deploy --fork-url https://rpc-mainnet.matic.quiknode.pro -vvvvv
+# Again manually update the .env file with the values from the above deployment
+```
+
+Use the `--broadcast` flag to broadcast the transaction to the network.
+
+### Run migration
+
+Obtain suitable values for migration. This can be done manual or via the script.
+When using these scripts ensure the `SCRIPT_PK` holds the LP tokens to migrate.
+
+```sh
+yarn run:prepare --fork-url https://rpc-mainnet.matic.quiknode.pro -vvvvv
+# Check the output.json
+```
+
+If you prefer to construct the values manually, see `config.example.json` for example format.
+Note that the object fields must be in alphabetical order for parsing.
+
+Run the migration:
+
+```sh
+yarn run:migrate --fork-url https://rpc-mainnet.matic.quiknode.pro -vvvvv
 ```
 
 Use the `--broadcast` flag to broadcast the transaction to the network.
