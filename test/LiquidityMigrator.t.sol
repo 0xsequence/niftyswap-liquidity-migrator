@@ -147,10 +147,7 @@ contract LiquidityMigratorTest is Test {
         uint256 tokenId,
         uint256 tokenAmount,
         address lpTokenHolder
-    )
-        private
-    {
-
+    ) private {
         uint256[] memory currencies = new uint256[](1);
         currencies[0] = currencyAmount;
 
@@ -235,9 +232,7 @@ contract LiquidityMigratorTest is Test {
         uint256 minCurrency,
         uint256 minToken,
         uint256 tokenId
-    )
-        public
-    {
+    ) public {
         ILiquidityMigrator.MigrationData memory data = baseData();
         tokenAmount = _bound(tokenAmount, 100, 1e18);
         currencyAmount = _bound(currencyAmount, 1000, 1e18);
@@ -283,13 +278,7 @@ contract LiquidityMigratorTest is Test {
     //
     // Deposit Liquidity
     //
-    function testDepositLiquidityStable(
-        uint256[] memory ids,
-        uint256[] memory amounts,
-        uint256 balance
-    )
-        public
-    {
+    function testDepositLiquidityStable(uint256[] memory ids, uint256[] memory amounts, uint256 balance) public {
         (ids, amounts) = boundIdsAndAmounts(ids, amounts, 3);
         balance = _bound(balance, 1000 * ids.length, 100e18);
         uint256[] memory currencies = new uint256[](ids.length);
@@ -345,7 +334,8 @@ contract LiquidityMigratorTest is Test {
         erc20New.mockMint(address(migrator), balanceNew);
         erc1155.batchMintMock(address(migrator), ids, amounts, "");
 
-        (uint256[] memory lpBalance) = migrator.callDepositLiquidity(ids, amounts, data, currencies, balanceOld, balanceNew);
+        (uint256[] memory lpBalance) =
+            migrator.callDepositLiquidity(ids, amounts, data, currencies, balanceOld, balanceNew);
 
         uint256[] memory zeros = new uint256[](ids.length);
         address[] memory thiss = new address[](ids.length);
@@ -377,9 +367,7 @@ contract LiquidityMigratorTest is Test {
         uint256 erc20NewBal,
         uint256[] memory ids,
         uint256[] memory amounts
-    )
-        public
-    {
+    ) public {
         assumeSafeAddress(receiver);
         (ids, amounts) = boundIdsAndAmounts(ids, amounts, 3);
         erc20OldBal = _bound(erc20OldBal, 1, 100e18);

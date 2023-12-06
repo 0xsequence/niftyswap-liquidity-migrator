@@ -29,11 +29,7 @@ contract PublicLiquidityMigrator is LiquidityMigrator {
         uint256[] calldata ids,
         uint256[] calldata amounts,
         bytes calldata callData
-    )
-        public
-        override
-        returns (bytes4)
-    {
+    ) public override returns (bytes4) {
         if (_processOnReceive) {
             return super.onERC1155BatchReceived(operator, from, ids, amounts, callData);
         }
@@ -45,10 +41,7 @@ contract PublicLiquidityMigrator is LiquidityMigrator {
         uint256[] memory ids,
         uint256[] memory amounts,
         MigrationData memory data
-    )
-        external
-        returns (uint256[] memory currenciesRemoved)
-    {
+    ) external returns (uint256[] memory currenciesRemoved) {
         return super.removeLiquidity(exchange, ids, amounts, data);
     }
 
@@ -63,10 +56,7 @@ contract PublicLiquidityMigrator is LiquidityMigrator {
         uint256[] memory currenciesRemoved,
         uint256 balanceOld,
         uint256 balanceNew
-    )
-        external
-        returns (uint256[] memory lpBalance)
-    {
+    ) external returns (uint256[] memory lpBalance) {
         return super.depositLiquidity(ids, amounts, data, currenciesRemoved, balanceOld, balanceNew);
     }
 
@@ -75,9 +65,7 @@ contract PublicLiquidityMigrator is LiquidityMigrator {
         MigrationData memory data,
         uint256[] memory ids,
         uint256[] memory lpBalance
-    )
-        external
-    {
+    ) external {
         super.recoverTokens(from, data, ids, lpBalance);
     }
 }

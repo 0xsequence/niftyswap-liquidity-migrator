@@ -73,11 +73,7 @@ contract PrepareMigrateScript is BaseScript {
         address exchangeOld,
         uint256[] memory ids,
         uint256[] memory lpAmounts
-    )
-        private
-        view
-        returns (uint256[] memory tokenAmounts, uint256[] memory currencyAmounts)
-    {
+    ) private view returns (uint256[] memory tokenAmounts, uint256[] memory currencyAmounts) {
         NiftyswapExchange20 exchange = NiftyswapExchange20(exchangeOld);
 
         uint256[] memory totalLiquidityArray = exchange.getTotalSupply(ids);
@@ -124,11 +120,7 @@ contract PrepareMigrateScript is BaseScript {
         uint256 totalLiquidity,
         uint256 currencyReserve,
         uint256 tokenReserve
-    )
-        private
-        view
-        returns (uint256, uint256)
-    {
+    ) private view returns (uint256, uint256) {
         uint256 currencyNumerator = lpAmount * currencyReserve;
         uint256 tokenNumerator = lpAmount * tokenReserve;
 

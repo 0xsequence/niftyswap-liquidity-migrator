@@ -56,11 +56,7 @@ contract LiquidityMigrator is ILiquidityMigrator {
         uint256[] calldata ids,
         uint256[] calldata amounts,
         bytes calldata callData
-    )
-        public
-        virtual
-        returns (bytes4)
-    {
+    ) public virtual returns (bytes4) {
         if (!processing) {
             processing = true;
             processMigration(from, msg.sender, ids, amounts, callData);
@@ -84,9 +80,7 @@ contract LiquidityMigrator is ILiquidityMigrator {
         uint256[] memory ids,
         uint256[] memory amounts,
         bytes calldata callData
-    )
-        internal
-    {
+    ) internal {
         // Decode data
         MigrationData memory data = decodeMigrationData(callData);
 
@@ -108,10 +102,7 @@ contract LiquidityMigrator is ILiquidityMigrator {
         uint256[] memory ids,
         uint256[] memory amounts,
         MigrationData memory data
-    )
-        internal
-        returns (uint256[] memory currenciesRemoved)
-    {
+    ) internal returns (uint256[] memory currenciesRemoved) {
         uint256[] memory reservesBefore = INiftyswapExchange20(exchange).getCurrencyReserves(ids);
         // Remove liquidity by sending LP tokens to iteself
         IERC1155(exchange).safeBatchTransferFrom(
@@ -170,10 +161,7 @@ contract LiquidityMigrator is ILiquidityMigrator {
         uint256[] memory currenciesRemoved,
         uint256 balanceOld,
         uint256 balanceNew
-    )
-        internal
-        returns (uint256[] memory lpBalance)
-    {
+    ) internal returns (uint256[] memory lpBalance) {
         // Calculate rates
         address[] memory thiss = new address[](ids.length);
         uint256[] memory currencies = new uint256[](ids.length);

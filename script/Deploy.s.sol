@@ -46,10 +46,7 @@ contract DeployScript is BaseScript {
         address currency,
         uint256 lpFee,
         uint256 instance
-    )
-        private
-        returns (address exchange)
-    {
+    ) private returns (address exchange) {
         INiftyswapFactory20 factory = INiftyswapFactory20(factoryAddr);
         exchange = factory.tokensToExchange(token, currency, lpFee, instance);
         if (exchange != address(0x0)) {
