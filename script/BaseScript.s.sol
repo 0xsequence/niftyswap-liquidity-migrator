@@ -7,6 +7,7 @@ import {Script, console} from "forge-std/Script.sol";
 
 struct Config {
     uint256 scriptPk;
+    address lpOwnerAddr;
     address oldERC20Addr;
     address newERC20Addr;
     address erc1155Addr;
@@ -38,6 +39,7 @@ abstract contract BaseScript is Script {
 
     function setUp() public virtual {
         config.scriptPk = vm.envUint("SCRIPT_PK");
+        config.lpOwnerAddr = vm.envAddress("LP_OWNER_ADDR");
         config.oldERC20Addr = vm.envAddress("OLD_ERC20_ADDR");
         config.newERC20Addr = vm.envAddress("NEW_ERC20_ADDR");
         config.erc1155Addr = vm.envAddress("ERC1155_ADDR");
@@ -52,6 +54,7 @@ abstract contract BaseScript is Script {
         config.migratorAddr = vm.envAddress("MIGRATOR_ADDR");
 
         // Label addresses for nicer logs
+        vm.label(config.lpOwnerAddr, "LP Owner");
         vm.label(vm.addr(config.scriptPk), "Script Runner");
         vm.label(config.oldERC20Addr, "Old ERC20");
         vm.label(config.newERC20Addr, "New ERC20");

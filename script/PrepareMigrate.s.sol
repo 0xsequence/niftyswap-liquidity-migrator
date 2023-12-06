@@ -24,7 +24,9 @@ contract PrepareMigrateScript is BaseScript {
 
         // Get LP amounts
         address[] memory scriptAddrs = new address[](len);
-        address scriptAddr = vm.addr(config.scriptPk);
+        address scriptAddr = config.lpOwnerAddr == address(0) ? vm.addr(config.scriptPk) : config.lpOwnerAddr;
+        console.log("Preparing details for", vm.toString(scriptAddr));
+
         for (uint256 i = 0; i < len; i++) {
             scriptAddrs[i] = scriptAddr;
         }

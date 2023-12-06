@@ -34,10 +34,17 @@ contract MigrateLiquidityScript is BaseScript {
         (ILiquidityMigrator.MigrationData memory data, uint256[] memory tokenIds, uint256[] memory lpAmounts) =
             prepareMigrationData();
 
-        address scriptAddr = vm.addr(config.scriptPk);
-
         IERC1155 oldExchange = IERC1155(config.oldExchangeAddr);
-        vm.startBroadcast(config.scriptPk);
+
+        bool live = config.lpOwnerAddr == address(0);
+        address scriptAddr = live ? vm.addr(config.scriptPk) : config.lpOwnerAddr;
+        if (live) {
+            console.log("Running migrating with", vm.toString(scriptAddr));
+            vm.startBroadcast(config.scriptPk);
+        } else {
+            console.log("Simulating migration with", vm.toString(scriptAddr));
+            vm.startBroadcast(scriptAddr);
+        }
         oldExchange.safeBatchTransferFrom(scriptAddr, config.migratorAddr, tokenIds, lpAmounts, abi.encode(data));
         vm.stopBroadcast();
     }

@@ -123,7 +123,10 @@ Use the `--broadcast` flag to broadcast the transaction to the network.
 ### Run migration
 
 Obtain suitable values for migration. This can be done manual or via the script.
-When using these scripts ensure the `SCRIPT_PK` holds the LP tokens to migrate.
+
+When using these scripts, if your LP token holder is an EOA, populate the private key in the `SCRIPT_PK` variable.
+If you are migrating tokens from a contract wallet (such as Sequence or Gnosis), populate the wallet address in the `LP_OWNER_ADDR` variable.
+**Do not populate the `LP_OWNER_ADDR` variable if you want to be able to execute the transaction via forge with `--broadcast`.**
 
 ```sh
 yarn run:prepare --fork-url https://rpc-mainnet.matic.quiknode.pro -vvvvv
@@ -133,13 +136,14 @@ yarn run:prepare --fork-url https://rpc-mainnet.matic.quiknode.pro -vvvvv
 If you prefer to construct the values manually, see `config.example.json` for example format.
 Note that the object fields must be in alphabetical order for parsing.
 
-Run the migration:
+Simulate a run of the migration:
 
 ```sh
 yarn run:migrate --fork-url https://rpc-mainnet.matic.quiknode.pro -vvvvv
 ```
 
-Use the `--broadcast` flag to broadcast the transaction to the network.
+If you set a private key, use the `--broadcast` flag to broadcast the transaction to the network.
+Otherwise, check the output file at `broadcast/MigrateLiquidity.s.sol/xxx/dry-run/run-latest.json` for the transaction data. Use this transaction data with your wallet provider to correctly sign and execute the transaction.
 
 ## License
 
