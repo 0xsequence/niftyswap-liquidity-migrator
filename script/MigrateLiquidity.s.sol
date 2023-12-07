@@ -21,6 +21,7 @@ import {IERC1155} from "@0xsequence/erc-1155/contracts/interfaces/IERC1155.sol";
  * - UNISWAP_ROUTER_ADDR: Address of the Uniswap Swap Router.
  * - MIN_SWAP_DELTA: The minimum percentage of Token B that must be obtained after swapping Token A.
  * - MIGRATOR_ADDR: Address of the LiquidityMigrator contract. Obtain from deployment script.
+ * - EXECUTION_WINDOW_SECONDS: Deadline in which the migration is valid.
  */
 contract MigrateLiquidityScript is BaseScript {
     LPConfig[] private lpConfigs;
@@ -69,7 +70,7 @@ contract MigrateLiquidityScript is BaseScript {
 
         // Create data
         data = ILiquidityMigrator.MigrationData({
-            deadline: uint96(block.timestamp + 10 minutes), // solhint-disable-line not-rely-on-time
+            deadline: uint96(block.timestamp + config.executionWindow), // solhint-disable-line not-rely-on-time
             minCurrencies: minCurrencies,
             minTokens: minTokens,
             erc20Old: config.oldERC20Addr,

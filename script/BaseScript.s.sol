@@ -20,6 +20,7 @@ struct Config {
     uint256 minSwapDelta;
     uint256 swapFee;
     address migratorAddr;
+    uint256 executionWindow;
 }
 
 // Note must be alphabetical to retain order after parsing with forge
@@ -52,6 +53,7 @@ abstract contract BaseScript is Script {
         config.minSwapDelta = vm.envUint("MIN_SWAP_DELTA");
         config.swapFee = vm.envUint("SWAP_FEE");
         config.migratorAddr = vm.envAddress("MIGRATOR_ADDR");
+        config.executionWindow = vm.envUint("EXECUTION_WINDOW_SECONDS");
 
         // Label addresses for nicer logs
         vm.label(config.lpOwnerAddr, "LP Owner");

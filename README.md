@@ -149,6 +149,7 @@ yarn run:migrate --fork-url https://rpc-mainnet.matic.quiknode.pro -vvvvv
 
 If you set a private key, use the `--broadcast` flag to broadcast the transaction to the network.
 Otherwise, check the output file at `broadcast/MigrateLiquidity.s.sol/xxx/dry-run/run-latest.json` for the transaction data. Use this transaction data with your wallet provider to correctly sign and execute the transaction.
+Transaction inclusion is only valid for `EXECUTION_WINDOW_SECONDS` as per config.
 
 ## License
 
