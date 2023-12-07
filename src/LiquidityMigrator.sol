@@ -8,20 +8,33 @@ import {IERC1155} from "@0xsequence/erc-1155/contracts/interfaces/IERC1155.sol";
 
 import {INiftyswapExchange20} from "@0xsequence/niftyswap/contracts/interfaces/INiftyswapExchange20.sol";
 
+import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
+
 import {ISwapRouter} from "@uniswap/v3-periphery/contracts/interfaces/ISwapRouter.sol";
 import {TransferHelper} from "@uniswap/lib/contracts/libraries/TransferHelper.sol";
 
 import {NiftyswapEncoder} from "./library/NiftyswapEncoder.sol";
 import {FullMath} from "./uniswap/FullMath.sol";
 
-contract LiquidityMigrator is ILiquidityMigrator {
+contract LiquidityMigrator is ILiquidityMigrator, Ownable {
     bytes4 internal constant ERC1155_RECEIVED_VALUE = 0xf23a6e61;
     bytes4 internal constant ERC1155_BATCH_RECEIVED_VALUE = 0xbc197c81;
 
     bytes4 internal constant ADDLIQUIDITY20_SIG = 0x82da2b73;
     bytes4 internal constant REMOVELIQUIDITY20_SIG = 0x5c0bf259;
 
-    bool private processing;
+    bool private processing = false;
+
+    /**
+     * Create the Liquidity Migrator.
+     * @param owner The owner of the contract.
+     * @notice The `owner` is able to remove tokens from this contract.
+     * If executed as intended, this contract will not hold tokens.
+     * As processing is atomic, the `owner` will be unable to remove tokens during processing.
+     */
+    constructor(address owner) Ownable() {
+        Ownable._transferOwnership(owner);
+    }
 
     /**
      * Handle the receipt of a single ERC1155 token type.
@@ -198,5 +211,28 @@ contract LiquidityMigrator is ILiquidityMigrator {
     function decodeMigrationData(bytes calldata data) internal pure returns (MigrationData memory migrationData) {
         // Decode data
         migrationData = abi.decode(data, (MigrationData));
+    }
+
+    /**
+     * Allows the `owner` to recover ERC20 tokens stuck in this contract.
+     * @param token The ERC20 contract address.
+     * @param receiver The receiver of the ERC20 tokens.
+     * @param amount The amount of tokens to recover.
+     * @notice This is only callable by the `owner`.
+     */
+    function ownerRecoverERC20(address token, address receiver, uint256 amount) external onlyOwner {
+        TransferHelper.safeTransfer(token, receiver, amount);
+    }
+
+    /**
+     * Allows the `owner` to recover ERC1155 tokens stuck in this contract.
+     * @param token The ERC1155 contract address.
+     * @param receiver The receiver of the ERC1155 tokens.
+     * @param tokenIds The token ids to recover.
+     * @param amounts The amount of tokens to recover.
+     * @notice This is only callable by the `owner`.
+     */
+    function ownerRecoverERC1155(address token, address receiver, uint256[] calldata tokenIds, uint256[] calldata amounts) external onlyOwner {
+        IERC1155(token).safeBatchTransferFrom(address(this), receiver, tokenIds, amounts, "");
     }
 }

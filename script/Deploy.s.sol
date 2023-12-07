@@ -32,8 +32,10 @@ contract DeployScript is BaseScript {
     }
 
     function deployMigrator(uint256 pk) private {
+        address deployerAddr = vm.addr(pk);
         vm.startBroadcast(pk);
-        LiquidityMigrator migrator = new LiquidityMigrator();
+        // Note deployer is the owner
+        LiquidityMigrator migrator = new LiquidityMigrator(deployerAddr);
         vm.stopBroadcast();
 
         console.log("LiquidityMigrator deployed at", address(migrator));

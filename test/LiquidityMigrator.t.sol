@@ -54,7 +54,7 @@ contract LiquidityMigratorTest is Test {
         setUpExchanges(address(erc20Old), address(erc20New), address(erc1155));
 
         // Create migrator
-        migrator = new PublicLiquidityMigrator();
+        migrator = new PublicLiquidityMigrator(setUpAddr);
     }
 
     /**

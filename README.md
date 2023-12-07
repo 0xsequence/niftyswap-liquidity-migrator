@@ -120,6 +120,11 @@ yarn run:deploy --fork-url https://rpc-mainnet.matic.quiknode.pro -vvvvv
 
 Use the `--broadcast` flag to broadcast the transaction to the network.
 
+Note when using this script the deployer will be set as the contract owner.
+The contract owner is able to recover tokens sent to the contract.
+With normal use, migration is atomic and no tokens should be left in the contract.
+This function exists for emergency uses only.
+
 ### Run migration
 
 Obtain suitable values for migration. This can be done manual or via the script.

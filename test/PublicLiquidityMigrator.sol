@@ -8,6 +8,8 @@ import {LiquidityMigrator} from "../src/LiquidityMigrator.sol";
 contract PublicLiquidityMigrator is LiquidityMigrator {
     bool private _processOnReceive;
 
+    constructor(address owner) LiquidityMigrator(owner) {} //solhint-disable-line no-empty-blocks
+
     function setProcessOnReceive(bool processOnReceive) external {
         _processOnReceive = processOnReceive;
     }
