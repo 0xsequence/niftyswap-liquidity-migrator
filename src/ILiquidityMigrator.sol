@@ -4,11 +4,9 @@ pragma solidity ^0.8.19;
 import {IERC1155TokenReceiver} from "@0xsequence/erc-1155/contracts/interfaces/IERC1155TokenReceiver.sol";
 
 interface ILiquidityMigrator is IERC1155TokenReceiver {
-    //FIXME Order for gas efficiency
     // Send this as data to onERC1155Received to trigger migration
     struct MigrationData {
         // Remove liquidity params
-        uint96 deadline;
         uint256[] minCurrencies;
         uint256[] minTokens;
         // ERC20 swap params
@@ -20,5 +18,7 @@ interface ILiquidityMigrator is IERC1155TokenReceiver {
         // Add liquidity params
         address exchangeNew;
         address erc1155;
+        // Common
+        uint96 deadline;
     }
 }
