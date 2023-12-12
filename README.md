@@ -125,6 +125,12 @@ The contract owner is able to recover tokens sent to the contract.
 With normal use, migration is atomic and no tokens should be left in the contract.
 This function exists for emergency uses only.
 
+To verify the deployed contract run:
+
+```sh
+forge verify-contract --watch --verifier-url "https://api.polygonscan.com/api" --etherscan-api-key <polyscan_api_key> --constructor-args $(cast abi-encode "constructor(address)" "<your_deployer_addr>") <deployed_contract_addr> LiquidityMigrator
+```
+
 ### Run migration
 
 Obtain suitable values for migration. This can be done manual or via the script.
