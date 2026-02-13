@@ -2,7 +2,7 @@
   "name": "niftyswap-liquidity-migrator",
   "version": "1.0.0",
   "description": "Migrate liquidity on Niftyswap",
-  "author": "Horizon Blockchain Games",
+  "author": "Sequence Platforms ULC",
   "license": "Apache-2.0",
   "type": "module",
   "private": true,
